@@ -1,0 +1,10 @@
+version: "3.2"
+services:  
+  tools:
+    image: bigfishradio
+    command: "tail -f /dev/null"
+    container_name: bigfishradio
+    volumes:
+      - ~/src/apps/bigfishradio:/bigfishradio
+      - /data/bigfishradio:/data/bigfishradio
+    working_dir: /bigfishradio
