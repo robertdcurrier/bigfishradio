@@ -57,9 +57,12 @@ def get_config() -> str:
 
 def mel_spec(wav_file, target) -> None:
     """
-    Uses librosa to create mel spec for file.
-    Parameters are obtained from create_movie.cfg
-    2021-11-04 robertdcurrier@gmail.com
+    Name:       mel_spec
+    Author:     robertdcurrier@gmail.com
+    Created:    2021-11-10
+    Modified:   2022-11-12
+    Notes:      Generates mel spec. Way too long; we need to break out
+    into some shorter routines -> spec gen, rescale, fig gen.
     """
     config = get_config()
     target = target
@@ -165,18 +168,15 @@ def mel_spec(wav_file, target) -> None:
 
 def transform_axes(bbox):
     """
-    Name:       combine_wav
+    Name:       transform_axes
     Author:     robertdcurrier@gmail.com
     Created:    2022-11-11
     Modified:   2022-11-11
-    Notes:      Patches I'm depending on ya son
-    
-    Map to 20 second 1500 hz axes from pixels
+    Notes:      Map to 20 second 1500 hz axes from pixels
     2022-11-11 THIS IS A HACK AND ONLY WORKS FOR 20 SECOND FILES
-    Need to put conversion factors in config file for each recording time
+    Need to put auto scaling factors in config file for each recording time
     so this will be transportable. 
     """
-
     x1 = bbox[0]
     ax1 = x1/32
     y1 = bbox[1]
