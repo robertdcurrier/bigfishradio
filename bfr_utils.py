@@ -68,6 +68,8 @@ def mel_spec(wav_file, target) -> None:
     target = target
     wav_dir = config['targets'][target]["wav_dir"]
     processed_dir = config["targets"][target]["processed_dir"]
+    pi = config["targets"][target]["pi"]
+    project = config["targets"][target]["project"]
     tmp_dir = config["targets"][target]["tmp_dir"]
     frame_x = config['targets'][target]['frame_x']
     frame_y = config['targets'][target]['frame_y']
@@ -88,7 +90,7 @@ def mel_spec(wav_file, target) -> None:
     no_ext = os.path.splitext(base)[0]
     tmp_mel = "%s/%s_mel.png" % (tmp_dir, no_ext)
     # Save in procoessed for AI
-    raw_mel = "%s/%s_mel.png" % (processed_dir, no_ext)
+    raw_mel = "%s%s_mel.png" % (processed_dir, no_ext)
 
     logging.info("mel_spec(): Generating mel spec for %s", wav_file)
     base = os.path.basename(wav_file)
@@ -135,10 +137,10 @@ def mel_spec(wav_file, target) -> None:
 
     
     bboxes = seek_biologics_png(raw_mel)
-   
+    parameters = get_transform_parameters(config, target) 
     for bbox in bboxes:
-        (ax1,ay1,w,h) = transform_axes(bbox)
-        ax.add_patch(Rectangle((ax1, ay1), w, h,
+        (ax1,ay1,aw1,ah1) = transform_axes(bbox, parameters)
+        ax.add_patch(Rectangle((ax1, ay1), aw1, ah1,
                         edgecolor = 'red',
                         fill=False,
                         lw=1))
@@ -147,9 +149,12 @@ def mel_spec(wav_file, target) -> None:
     fig.gca().set_ylabel("Hz", fontsize=8)
     fig.gca().set_xlabel("Seconds", fontsize=8)
     fig.gca().set_yticks(range(spec_fmin, spec_fmax, spec_fsteps))
-    title = "%s" % no_ext
-    fig.suptitle(title, fontsize=10)
 
+    dts = wav_file.split('/')[1]
+    dts = dts.split('_')[0]
+    title = "%s: %s %s" % (pi, project, dts)
+    plt.suptitle(title, fontsize=6)
+    
     try:
         annotated_out = '%s/%s_annotated.png' % (processed_dir, no_ext)
         plt.axis('on')
@@ -166,28 +171,64 @@ def mel_spec(wav_file, target) -> None:
     plt.close()
 
 
-def transform_axes(bbox):
+def get_transform_parameters(config, target):
+    """
+    Name:       get_transform_parameters
+    Author:     robertdcurrier@gmail.com
+    Created:    2022-11-14
+    Modified:   2022-11-14
+    Notes:      Get parameters from config file for performing
+                axes transformation: rt, ph, pw, xfactor, yfactor and fmin,
+                fmax, etc.
+
+                Return fmin, fmax, xfac, yfac and ph 
+    """
+    spec_fmin = config['targets'][target]['spec_fmin']
+    spec_fmax = config['targets'][target]['spec_fmax']
+    pw = config['targets'][target]['frame_x']
+    ph = config['targets'][target]['frame_y']
+    rt = config['targets'][target]['recording_seconds']
+    xfac = pw/rt 
+    yfac = spec_fmax/ph
+
+    parameters = { 
+                    "fmin" : spec_fmin,
+                    "fmax" : spec_fmax,
+                    "ph" : ph,
+                    "xfac" : xfac,
+                    "yfac" : yfac
+                }
+    return parameters
+
+
+def transform_axes(bbox, parameters):
     """
     Name:       transform_axes
     Author:     robertdcurrier@gmail.com
     Created:    2022-11-11
-    Modified:   2022-11-11
-    Notes:      Map to 20 second 1500 hz axes from pixels
-    2022-11-11 THIS IS A HACK AND ONLY WORKS FOR 20 SECOND FILES
-    Need to put auto scaling factors in config file for each recording time
-    so this will be transportable. 
+    Modified:   2022-11-14
+    Notes:      Maps x pixels to x seconds and y pixels to y freq 
     """
+    xfac = parameters["xfac"]
+    yfac = parameters["yfac"]
+    fmin = parameters["fmin"]
+    ph = parameters["ph"]
+   
     x1 = bbox[0]
-    ax1 = x1/32
     y1 = bbox[1]
-    ay1 = y1*4.5
-    x2 = bbox[2]
-    ax2 = x2/32
-    y2 = bbox[3]
-    ay2 = y2*4.5
-    w = (ax2-ax1)+.1 # <-- padding   
-    h = (ay2-ay1)
-    return(ax1,0,w,h)
+    y1 = y1-ph
+    w1 = bbox[2]
+    h1 = bbox[3]
+    logging.debug("transform_axes(): %d,%d,%d,%d", x1,y1,w1,h1)
+
+    ax1 = x1/xfac
+    ay1 = y1*yfac
+    if ay1 < fmin:
+        ay1 = fmin
+    aw1 = w1/xfac
+    ah1 = h1*yfac-ay1
+    logging.debug("transformed: %0.4f,%0.4f,%0.4f,%0.4f",ax1, ay1, aw1, ah1)
+    return(ax1, ay1, aw1,ah1)
 
 
 def combine_wav(target) -> None:
@@ -225,8 +266,8 @@ def combine_wav(target) -> None:
 
     # Get length so we can calculate frame count
     seconds_long = combinedWavFile.duration_seconds
-    logging.info("combine_wav(): combinedWavFile is %d seconds long", seconds_long)
-    logging.info("combine_wav(): Writing combinedWavFile as wav")
+    logging.debug("combine_wav(): combinedWavFile is %d seconds long", seconds_long)
+    logging.debug("combine_wav(): Writing combinedWavFile as wav")
     combinedWavFile.export(wav_out, format='wav')
 
 
@@ -250,7 +291,7 @@ def soxfilter(wav_file, target) -> None:
 
 
     # Run sox lowpass
-    logging.info('lowpass(): Running sox lowpass on %s with cutoff %d', wav_file, lowpass)
+    logging.debug('lowpass(): Running sox lowpass on %s with cutoff %d', wav_file, lowpass)
     tfm = sox.Transformer()
     tfm.lowpass(lowpass)
     tfm.build_file(wav_file, sox_out)
@@ -262,7 +303,7 @@ def get_wav_file_names(wav_dir) -> list:
     gets wav file names directory tree  and returns as list
     """
     wav_files = []
-    logging.info("get_wav_file_names(): %s", wav_dir)
+    logging.debug("get_wav_file_names(): %s", wav_dir)
     for root, dirs, files in os.walk(wav_dir):
         if len(files) != 0:
             for wav_file in files:
@@ -280,7 +321,7 @@ def get_melspec_file_names(png_dir) -> list:
     of non-annotated PNG files. 
     """
     png_files = []
-    logging.info("get_melspec_file_names(): %s", png_dir)
+    logging.debug("get_melspec_file_names(): %s", png_dir)
     for root, dirs, files in os.walk(png_dir):
         if len(files) != 0:
             for png_file in files:
@@ -303,7 +344,7 @@ def clean_tmp_files():
     files = glob.glob('tmp/*')
     for file in files:
         os.remove(file)
-    logging.info("clean_tmp_files(): Removed all files in tmp")
+    logging.debug("clean_tmp_files(): Removed all files in tmp")
 
 
 def ffmpeg_it(wav_file, target):
@@ -317,11 +358,12 @@ def ffmpeg_it(wav_file, target):
     integrating into ffmpeg library for Python3
     """
     config = get_config()
+    processed_dir = config['targets'][target]['processed_dir']
     base = os.path.basename(wav_file)
     no_ext = os.path.splitext(base)[0]
     target = target
     wav_dir = config['targets'][target]["wav_dir"]
-    sox_in = "tmp/%s_boosted_sox.wav" % no_ext
+    sox_in = "%s/%s_boosted_sox.wav" % (processed_dir, no_ext)
     processed_dir = config["targets"][target]["processed_dir"]
     recording_seconds = int(config['targets'][target]['recording_seconds'])
     frame_x = int(config['targets'][target]['frame_x'])
@@ -330,11 +372,11 @@ def ffmpeg_it(wav_file, target):
     loop_command = """ffmpeg -loglevel quiet -y -loop 1 -t %d -i tmp/%s_final.png -vf "crop=w=%d:h=ih:x='(iw-%d)*t/%d':y=0" -r 24 -pix_fmt yuv420p tmp/%s_frames.mp4""" % (recording_seconds, no_ext, frame_x, frame_x, recording_seconds, no_ext)
     logging.debug(loop_command)
     os.system(loop_command)
-    logging.info('ffmpeg_it(): Synchronizing audio and video for %s', wav_file)
+    logging.debug('ffmpeg_it(): Synchronizing audio and video for %s', wav_file)
     mix_command = """ffmpeg -loglevel quiet -y -i tmp/%s_frames.mp4  -i tmp/%s.wav -vf scale=%d:320 -framerate 24 -c:v libx264 -pix_fmt yuv420p -profile:v baseline -level 3.0 -crf 20 -preset veryslow -c:a aac -strict experimental -movflags +faststart -threads 0 %s/%s_processed.mp4""" % (no_ext, no_ext, frame_x, processed_dir, no_ext)
     os.system(mix_command)
     logging.debug(mix_command)
-    logging.info('ffmpeg_it(): Finished building %s_final.mp4', no_ext)
+    logging.debug('ffmpeg_it(): Finished building %s_final.mp4', no_ext)
 
 
 def boost_audio(wav_file, target):
@@ -349,7 +391,7 @@ def boost_audio(wav_file, target):
     base = os.path.basename(wav_file)
     no_ext = os.path.splitext(base)[0]
     boost = config['targets'][target]['boost']
-    logging.info("boost_audio(): Boosting %s by %d dB", wav_file, boost)
+    logging.debug("boost_audio(): Boosting %s by %d dB", wav_file, boost)
     try:
         audio = AudioSegment.from_wav(wav_file)
         audio = audio + boost
@@ -365,7 +407,7 @@ def header_footer(wav_file, target):
     Notes: Loads tmp_mel and adds header and footer.
     Modified: 2021-11-10
     """
-    logging.info("header_footer(): Loading %s", wav_file)
+    logging.debug("header_footer(): Loading %s", wav_file)
     config = get_config()
     wav_dir = config['targets'][target]["wav_dir"]
     tmp_dir = config['targets'][target]["tmp_dir"]
@@ -437,7 +479,7 @@ def seek_biologics_png(png_file):
     contours = gen_cons(png_file)
     circ_cons = gen_coral(img.copy(), contours, png_file)
     bboxes = gen_bboxes(circ_cons)
-
+    
     rect_color = eval('%s' % config['targets'][target]['taxa'][taxa]["rect_color"])
    
     line_thick = config['targets'][target]['taxa'][taxa]["line_thick"]
@@ -445,9 +487,11 @@ def seek_biologics_png(png_file):
     for bbox in bboxes:
         x1 = bbox[0]
         y1 = bbox[1]
-        x2 = bbox[2]
-        y2 = bbox[3]
-       
+        width = bbox[2]
+        height = bbox[3]
+        x2 = x1+width
+        y2 = y1+height
+    
         if y1 > y1_max:
             cv2.rectangle(img,(x1,y1),(x2,y2), (rect_color), line_thick)    
     (root, fname) = os.path.split(png_file)
@@ -456,7 +500,7 @@ def seek_biologics_png(png_file):
     logging.debug('seek_biologics_png(): Writing contours %s', cons_f)
     cv2.imwrite(cons_f, img)
     return bboxes
-  
+
 
 def gen_coral(img, cons, png_file):
     """
@@ -467,7 +511,7 @@ def gen_coral(img, cons, png_file):
     Notes:      Iterates over PNG. Returns circle cons
     for generating bounding boxes.
     """
-    logging.info('gen_coral(%s)', png_file)
+    logging.debug('gen_coral(%s)', png_file)
     config = get_config()
     args = get_cli_args()
     target = args['target']
@@ -502,7 +546,6 @@ def gen_coral(img, cons, png_file):
     no_ext = os.path.splitext(fname)[0]
     cons_f = "%s/%s_CONS.png" % (debug_dir, no_ext)
     edges_f = "%s/%s_EDGES.png" % (debug_dir, no_ext)
-    logging.info('seek_biologics_png(): Writing contours and edges %s', cons_f)
     cv2.imwrite(cons_f, img)
     cv2.imwrite(edges_f, edges)
     return(circ_cons)
@@ -563,14 +606,15 @@ def gen_bboxes(cons):
         rect = cv2.boundingRect(con)
         x1 = rect[0]
         y1 = rect[1]
-        x2 = x1+rect[2]
-        y2 = y1+rect[3]
-        width = x2-x1
-        height = y2-y1
+        width = rect[2]
+        height = rect[3]
+        x2 = x1+width
+        y2 = y1+height
+        
         area = width*height
         logging.debug('gen_bboxes() Area: %d', area)
         if area > min_roi_area and area < max_roi_area:
-            bboxes.append([x1,y1,x2,y2])
+            bboxes.append([x1,y1,width,height])
     bboxes = list(bboxes for bboxes,_ in itertools.groupby(bboxes))
     logging.debug('gen_bboxes(): Found %d ROIs' % (len(bboxes)))
     return (bboxes)
@@ -586,11 +630,11 @@ def do_singles(file) -> None:
     args = get_cli_args()
     # Single files
     target = args['target']
-    logging.info('bfr(): processing file %s', file)
+    logging.debug('do_singles(): processing file %s', file)
     boost_file = boost_audio(file, target)
     sox_file = soxfilter(boost_file, target)
     # need to run spec on SOX file, not just BOOST file yo!
     mel_spec(sox_file, target)
     header_footer(sox_file, target)
     ffmpeg_it(sox_file, target)
-    logging.info('bfr(): Finished single file processing %s', file)
+    logging.debug('bfr(): Finished single file processing %s', file)
