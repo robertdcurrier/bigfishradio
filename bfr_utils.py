@@ -300,7 +300,7 @@ def soxfilter(wav_file, target) -> None:
 
 
     # Run sox lowpass
-    logging.debug('lowpass(): Running sox lowpass on %s with cutoff %d', wav_file, lowpass)
+    logging.info('soxfilter(): Running lowpass on %s with cutoff %d', wav_file, lowpass)
     tfm = sox.Transformer()
     tfm.lowpass(lowpass)
     tfm.build_file(wav_file, sox_out)
@@ -385,7 +385,7 @@ def ffmpeg_it(wav_file, target):
     mix_command = """ffmpeg -loglevel quiet -y -i tmp/%s_frames.mp4  -i tmp/%s.wav -vf scale=%d:320 -framerate 24 -c:v libx264 -pix_fmt yuv420p -profile:v baseline -level 3.0 -crf 20 -preset veryslow -c:a aac -strict experimental -movflags +faststart -threads 0 %s/%s_processed.mp4""" % (no_ext, no_ext, frame_x, processed_dir, no_ext)
     os.system(mix_command)
     logging.debug(mix_command)
-    logging.debug('ffmpeg_it(): Finished building %s_final.mp4', no_ext)
+    logging.info('ffmpeg_it(): Finished building %s_final.mp4', no_ext)
 
 
 def boost_audio(wav_file, target):
@@ -400,7 +400,7 @@ def boost_audio(wav_file, target):
     base = os.path.basename(wav_file)
     no_ext = os.path.splitext(base)[0]
     boost = config['targets'][target]['boost']
-    logging.debug("boost_audio(): Boosting %s by %d dB", wav_file, boost)
+    logging.info("boost_audio(): Boosting %s by %d dB", wav_file, boost)
     try:
         audio = AudioSegment.from_wav(wav_file)
         audio = audio + boost
@@ -525,6 +525,8 @@ def gen_coral(img, cons, png_file):
     args = get_cli_args()
     target = args['target']
     taxa = "beta"
+    debug = config['targets'][target]["debug"]
+
     debug_dir = config['targets'][target]['debug_dir']
     line_thick = config['targets'][target]['taxa'][taxa]['line_thick']
     radius_boost = config['targets'][target]['taxa'][taxa]['radius_boost']
@@ -549,14 +551,18 @@ def gen_coral(img, cons, png_file):
     edges = cv2.Canny(threshold, edges_min, edges_max)
     circ_cons, _ = (cv2.findContours(edges, cv2.RETR_TREE,
                                     cv2.CHAIN_APPROX_SIMPLE))
-    cv2.drawContours(img, circ_cons, -1, (0,255,0), 2)
+    coral_img = cv2.drawContours(img, circ_cons, -1, (0,255,0), 2)
     logging.debug('gen_coral(%s): found %d circ_cons', png_file, len(circ_cons))
     (root, fname) = os.path.split(png_file)
     no_ext = os.path.splitext(fname)[0]
-    cons_f = "%s/%s_CONS.png" % (debug_dir, no_ext)
-    edges_f = "%s/%s_EDGES.png" % (debug_dir, no_ext)
-    cv2.imwrite(cons_f, img)
-    cv2.imwrite(edges_f, edges)
+
+    if debug:
+        cons_f = "%s/%s_CONS.png" % (debug_dir, no_ext)
+        edges_f = "%s/%s_EDGES.png" % (debug_dir, no_ext)
+        coral_f = "%s/%s_CORAL.png" % (debug_dir, no_ext)
+        cv2.imwrite(cons_f, img)
+        cv2.imwrite(edges_f, edges)
+        cv2.imwrite(coral_f, coral_img)
     return(circ_cons)
 
 
