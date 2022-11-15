@@ -189,15 +189,17 @@ def get_transform_parameters(config, target):
     ph = config['targets'][target]['frame_y']
     rt = config['targets'][target]['recording_seconds']
     xfac = pw/rt 
-    yfac = spec_fmax/ph
-
+    yfac = ph/spec_fmax # <---- 0 top 320 bottom
+    zfac = spec_fmax/ph # <---- 0 bottom 320 top
     parameters = { 
                     "fmin" : spec_fmin,
                     "fmax" : spec_fmax,
                     "ph" : ph,
                     "xfac" : xfac,
-                    "yfac" : yfac
+                    "yfac" : yfac,
+                    "zfac" : zfac
                 }
+
     return parameters
 
 
@@ -211,24 +213,31 @@ def transform_axes(bbox, parameters):
     """
     xfac = parameters["xfac"]
     yfac = parameters["yfac"]
+    zfac = parameters["zfac"]
     fmin = parameters["fmin"]
+    fmax = parameters["fmax"]
     ph = parameters["ph"]
-   
+
+    xpad = .10
+    ypad = 15
+
     x1 = bbox[0]
     y1 = bbox[1]
-    y1 = y1-ph
     w1 = bbox[2]
     h1 = bbox[3]
-    logging.debug("transform_axes(): %d,%d,%d,%d", x1,y1,w1,h1)
 
-    ax1 = x1/xfac
-    ay1 = y1*yfac
-    if ay1 < fmin:
-        ay1 = fmin
-    aw1 = w1/xfac
-    ah1 = h1*yfac-ay1
+    ax1 = (x1/xfac)-xpad
+    ay1 = (ph-y1)*yfac
+    if ay1 <=0:
+        ay1 = ay1+fmin
+    ay1 = ay1-ypad
+    aw1 = (w1/xfac)+xpad
+    ah1 = zfac*h1
+    
+    logging.debug('parameters are: %0.2f, %0.2f, %d, %d', xfac, yfac, ph, fmin)
+    logging.debug("bbox is: %d,%d,%d,%d", x1,y1,w1,h1)
     logging.debug("transformed: %0.4f,%0.4f,%0.4f,%0.4f",ax1, ay1, aw1, ah1)
-    return(ax1, ay1, aw1,ah1)
+    return(ax1, ay1, aw1, ah1)
 
 
 def combine_wav(target) -> None:
