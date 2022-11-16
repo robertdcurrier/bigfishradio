@@ -89,7 +89,7 @@ def mel_spec(wav_file, target) -> None:
     base = os.path.basename(wav_file)
     no_ext = os.path.splitext(base)[0]
     tmp_mel = "%s/%s_mel.png" % (tmp_dir, no_ext)
-    # Save in procoessed for AI
+    # Save in processed_dir for AI
     raw_mel = "%s%s_mel.png" % (processed_dir, no_ext)
 
     logging.info("mel_spec(): Generating mel spec for %s", wav_file)
@@ -120,7 +120,7 @@ def mel_spec(wav_file, target) -> None:
     except IOError as e:
         logging.warning("Failed to write fig. Error: %s", e)
         plt.close()
-    
+
     # Resize so we're cool for ffmpeg
     image = (cv2.imread(tmp_mel))
     image = cv2.resize(image,(frame_x,frame_y))
@@ -135,9 +135,9 @@ def mel_spec(wav_file, target) -> None:
             hop_length=hop_length, x_axis='time',y_axis='mel',
             fmax=spec_fmax, fmin=spec_fmin, cmap=cmap)
 
-    
+
     bboxes = seek_biologics_png(raw_mel)
-    parameters = get_transform_parameters(config, target) 
+    parameters = get_transform_parameters(config, target)
     for bbox in bboxes:
         (ax1,ay1,aw1,ah1) = transform_axes(bbox, parameters)
         ax.add_patch(Rectangle((ax1, ay1), aw1, ah1,
@@ -154,7 +154,7 @@ def mel_spec(wav_file, target) -> None:
     dts = dts.split('_')[0]
     title = "%s: %s %s" % (pi, project, dts)
     plt.suptitle(title, fontsize=6)
-    
+
     try:
         annotated_out = '%s/%s_annotated.png' % (processed_dir, no_ext)
         plt.axis('on')
@@ -164,9 +164,9 @@ def mel_spec(wav_file, target) -> None:
         plt.close()
     plt.close()
     # Resize so we're cool for viewing
-    image = (cv2.imread(annotated_out))
-    image = cv2.resize(image,(annotated_x,annotated_y))
-    cv2.imwrite(annotated_out, image)
+    #image = (cv2.imread(annotated_out))
+    #image = cv2.resize(image,(annotated_x,annotated_y))
+    #cv2.imwrite(annotated_out, image)
     logging.debug("mel_spec(): Closing fig")
     plt.close()
 
@@ -181,17 +181,17 @@ def get_transform_parameters(config, target):
                 axes transformation: rt, ph, pw, xfactor, yfactor and fmin,
                 fmax, etc.
 
-                Return fmin, fmax, xfac, yfac and ph 
+                Return fmin, fmax, xfac, yfac and ph
     """
     spec_fmin = config['targets'][target]['spec_fmin']
     spec_fmax = config['targets'][target]['spec_fmax']
     pw = config['targets'][target]['frame_x']
     ph = config['targets'][target]['frame_y']
     rt = config['targets'][target]['recording_seconds']
-    xfac = pw/rt 
+    xfac = pw/rt
     yfac = ph/spec_fmax # <---- 0 top 320 bottom
     zfac = spec_fmax/ph # <---- 0 bottom 320 top
-    parameters = { 
+    parameters = {
                     "fmin" : spec_fmin,
                     "fmax" : spec_fmax,
                     "ph" : ph,
@@ -209,7 +209,7 @@ def transform_axes(bbox, parameters):
     Author:     robertdcurrier@gmail.com
     Created:    2022-11-11
     Modified:   2022-11-14
-    Notes:      Maps x pixels to x seconds and y pixels to y freq 
+    Notes:      Maps x pixels to x seconds and y pixels to y freq
     """
     xfac = parameters["xfac"]
     yfac = parameters["yfac"]
@@ -233,7 +233,7 @@ def transform_axes(bbox, parameters):
     ay1 = ay1-ypad
     aw1 = (w1/xfac)+xpad
     ah1 = zfac*h1
-    
+
     logging.debug('parameters are: %0.2f, %0.2f, %d, %d', xfac, yfac, ph, fmin)
     logging.debug("bbox is: %d,%d,%d,%d", x1,y1,w1,h1)
     logging.debug("transformed: %0.4f,%0.4f,%0.4f,%0.4f",ax1, ay1, aw1, ah1)
@@ -326,8 +326,8 @@ def get_wav_file_names(wav_dir) -> list:
 
 def get_melspec_file_names(png_dir) -> list:
     """
-    gets melspec.png file names directory tree and returns list 
-    of non-annotated PNG files. 
+    gets melspec.png file names directory tree and returns list
+    of non-annotated PNG files.
     """
     png_files = []
     logging.debug("get_melspec_file_names(): %s", png_dir)
@@ -455,7 +455,7 @@ def seek_biologics_wav(wav_file):
     Created:    2022-11-07
     Modified:   2022-11-07
     Notes:      Hunts for biological signatures in wav files.  This will be moved
-    to brf_utils.py when fully debugged. 
+    to brf_utils.py when fully debugged.
     """
     logging.info('seek_biologics(%s)', wav_file)
     audio = AudioSegment.from_wav(wav_file)
@@ -469,7 +469,7 @@ def seek_biologics_png(png_file):
     Created:    2022-11-07
     Modified:   2022-11-07
     Notes:      Hunts for biological signatures using CORAL. This will be moved
-    to brf_utils.py when fully debugged. 
+    to brf_utils.py when fully debugged.
     """
     config = get_config()
     args = get_cli_args()
@@ -478,19 +478,19 @@ def seek_biologics_png(png_file):
 
     debug_dir = config['targets'][target]['debug_dir']
     logging.info('seek_biologics_png(%s)', png_file)
-        
+
     try:
         img = cv2.imread(png_file)
     except:
         logging.warning('load_image(): Failed to open %s' % png_file)
         return
-    
+
     contours = gen_cons(png_file)
     circ_cons = gen_coral(img.copy(), contours, png_file)
     bboxes = gen_bboxes(circ_cons)
-    
+
     rect_color = eval('%s' % config['targets'][target]['taxa'][taxa]["rect_color"])
-   
+
     line_thick = config['targets'][target]['taxa'][taxa]["line_thick"]
     y1_max = config['targets'][target]['taxa'][taxa]["y1_max"]
     for bbox in bboxes:
@@ -500,9 +500,9 @@ def seek_biologics_png(png_file):
         height = bbox[3]
         x2 = x1+width
         y2 = y1+height
-    
+
         if y1 > y1_max:
-            cv2.rectangle(img,(x1,y1),(x2,y2), (rect_color), line_thick)    
+            cv2.rectangle(img,(x1,y1),(x2,y2), (rect_color), line_thick)
     (root, fname) = os.path.split(png_file)
     no_ext = os.path.splitext(fname)[0]
     cons_f = "%s/%s_CONS.png" % (debug_dir, no_ext)
@@ -538,7 +538,7 @@ def gen_coral(img, cons, png_file):
         center = (int(x), int(y))
         radius = int(radius+radius_boost)
         cv2.circle(circle_img, center, radius, (0,0,0), -1)
-    
+
     edges_min = config['targets'][target]['taxa'][taxa]['coral_edges_min']
     edges_max = config['targets'][target]['taxa'][taxa]['coral_edges_max']
     thresh_min = config['targets'][target]['taxa'][taxa]['thresh_min']
@@ -604,7 +604,7 @@ def gen_bboxes(cons):
     Author:     robertdcurrier@gmail.com
     Created:    2022-07-11
     Modified:   2022-11-09
-    Notes:      
+    Notes:
     """
     args = get_cli_args()
     target = args['target']
@@ -625,7 +625,7 @@ def gen_bboxes(cons):
         height = rect[3]
         x2 = x1+width
         y2 = y1+height
-        
+
         area = width*height
         logging.debug('gen_bboxes() Area: %d', area)
         if area > min_roi_area and area < max_roi_area:
