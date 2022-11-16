@@ -66,7 +66,6 @@ def mel_spec(wav_file, target) -> None:
     """
     config = get_config()
     target = target
-    # Config settings
     wav_dir = config['targets'][target]["wav_dir"]
     processed_dir = config["targets"][target]["processed_dir"]
     pi = config["targets"][target]["pi"]
@@ -74,8 +73,10 @@ def mel_spec(wav_file, target) -> None:
     tmp_dir = config["targets"][target]["tmp_dir"]
     frame_x = config['targets'][target]['frame_x']
     frame_y = config['targets'][target]['frame_y']
+
     annotated_x = config['targets'][target]['annotated_x']
     annotated_y = config['targets'][target]['annotated_y']
+
     hop_length = config['targets'][target]["hop_length"]
     spec_fmin = config['targets'][target]["spec_fmin"]
     spec_fmax = config['targets'][target]["spec_fmax"]
@@ -83,13 +84,7 @@ def mel_spec(wav_file, target) -> None:
     n_fft = config['targets'][target]["n_fft"]
     n_mels = config['targets'][target]["n_mels"]
     cmap = config['targets'][target]["cmap"]
-    base = os.path.basename(wav_file)
-    no_ext = os.path.splitext(base)[0]
-    fig_x = config['targets'][target]['fig_x']
-    fig_y = config['targets'][target]['fig_y']
-    spec_fsteps = config['targets'][target]['spec_fsteps']
-    dpi = config['targets'][target]['dpi']
-    # End config settings
+
 
     base = os.path.basename(wav_file)
     no_ext = os.path.splitext(base)[0]
@@ -98,7 +93,12 @@ def mel_spec(wav_file, target) -> None:
     raw_mel = "%s%s_mel.png" % (processed_dir, no_ext)
 
     logging.info("mel_spec(): Generating mel spec for %s", wav_file)
-  
+    base = os.path.basename(wav_file)
+    no_ext = os.path.splitext(base)[0]
+    fig_x = config['targets'][target]['fig_x']
+    fig_y = config['targets'][target]['fig_y']
+    spec_fsteps = config['targets'][target]['spec_fsteps']
+    dpi = config['targets'][target]['dpi']
     bits, rate = librosa.core.load(wav_file)
     plt.figure(figsize=(fig_x, fig_y), dpi=dpi)
 
@@ -152,9 +152,8 @@ def mel_spec(wav_file, target) -> None:
 
     dts = wav_file.split('/')[1]
     dts = dts.split('_')[0]
-    title = "\n%s: %s %s\n" % (pi, project, dts)
-    plt.title(title, fontsize=6, horizontalalignment='center')
-    
+    title = "%s: %s %s" % (pi, project, dts)
+    plt.suptitle(title, fontsize=6)
     
     try:
         annotated_out = '%s/%s_annotated.png' % (processed_dir, no_ext)
@@ -379,7 +378,6 @@ def ffmpeg_it(wav_file, target):
     shell script.  For now we use the os command but plan on
     integrating into ffmpeg library for Python3
     """
-    logging.info('ffmpeg_it(%s)', wav_file)
     config = get_config()
     processed_dir = config['targets'][target]['processed_dir']
     base = os.path.basename(wav_file)
@@ -481,11 +479,10 @@ def seek_biologics_png(png_file):
     Name:       seek_biologics_png
     Author:     robertdcurrier@gmail.com
     Created:    2022-11-07
-    Modified:   2022-11-16
-    Notes:      Hunts for biological signatures using CORAL. We removed the annotation
-    code and now this function returns only bounding boxes. Annotation is done elsewhere. 
+    Modified:   2022-11-07
+    Notes:      Hunts for biological signatures using CORAL. This will be moved
+    to brf_utils.py when fully debugged. 
     """
-
     config = get_config()
     args = get_cli_args()
     target = args['target']
