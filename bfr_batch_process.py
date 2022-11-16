@@ -15,7 +15,7 @@ import logging
 import time
 import multiprocessing as mp
 # Utility imports
-from bfr_utils import (mel_spec, get_config, clean_tmp_files, get_cli_args,
+from bfr_utils_BETA import (mel_spec, get_config, clean_tmp_files, get_cli_args,
 get_wav_file_names, do_singles)
 
 
