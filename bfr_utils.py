@@ -66,6 +66,7 @@ def mel_spec(wav_file, target) -> None:
     """
     config = get_config()
     target = target
+    taxa = 'beta'
     # Config settings
     wav_dir = config['targets'][target]["wav_dir"]
     processed_dir = config["targets"][target]["processed_dir"]
@@ -89,13 +90,15 @@ def mel_spec(wav_file, target) -> None:
     fig_y = config['targets'][target]['fig_y']
     spec_fsteps = config['targets'][target]['spec_fsteps']
     dpi = config['targets'][target]['dpi']
+    edge_color = config['targets'][target]['taxa'][taxa]["edge_color"]
+
     # End config settings
 
     base = os.path.basename(wav_file)
     no_ext = os.path.splitext(base)[0]
     tmp_mel = "%s/%s_mel.png" % (tmp_dir, no_ext)
     # Save in procoessed for AI
-    raw_mel = "%s%s_mel.png" % (processed_dir, no_ext)
+    raw_mel = "%s/%s_mel.png" % (processed_dir, no_ext)
 
     logging.info("mel_spec(): Generating mel spec for %s", wav_file)
   
@@ -141,7 +144,7 @@ def mel_spec(wav_file, target) -> None:
     for bbox in bboxes:
         (ax1,ay1,aw1,ah1) = transform_axes(bbox, parameters)
         ax.add_patch(Rectangle((ax1, ay1), aw1, ah1,
-                        edgecolor = 'red',
+                        edgecolor = edge_color,
                         fill=False,
                         lw=1))
 
@@ -349,7 +352,7 @@ def get_melspec_file_names(png_dir) -> list:
             for png_file in files:
                 # Non-annotated PNG files only
                 if 'sox_mel' in png_file:
-                    file_name = "%s%s" % (root, png_file)
+                    file_name = "%s/%s" % (root, png_file)
                     png_files.append(file_name)
     png_files = natsorted(png_files)
     return png_files
@@ -599,6 +602,7 @@ def gen_cons(png_file):
     config = get_config()
     edges_min = config['targets'][target]['taxa'][taxa]['con_edges_min']
     edges_max = config['targets'][target]['taxa'][taxa]['con_edges_max']
+    
 
     logging.debug('gen_cons(%s)' % png_file)
 

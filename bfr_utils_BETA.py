@@ -66,6 +66,7 @@ def mel_spec(wav_file, target) -> None:
     """
     config = get_config()
     target = target
+    taxa = 'beta'
     # Config settings
     wav_dir = config['targets'][target]["wav_dir"]
     processed_dir = config["targets"][target]["processed_dir"]
@@ -89,13 +90,15 @@ def mel_spec(wav_file, target) -> None:
     fig_y = config['targets'][target]['fig_y']
     spec_fsteps = config['targets'][target]['spec_fsteps']
     dpi = config['targets'][target]['dpi']
+    edge_color = config['targets'][target]['taxa'][taxa]["edge_color"]
+
     # End config settings
 
     base = os.path.basename(wav_file)
     no_ext = os.path.splitext(base)[0]
     tmp_mel = "%s/%s_mel.png" % (tmp_dir, no_ext)
     # Save in procoessed for AI
-    raw_mel = "%s%s_mel.png" % (processed_dir, no_ext)
+    raw_mel = "%s/%s_mel.png" % (processed_dir, no_ext)
 
     logging.info("mel_spec(): Generating mel spec for %s", wav_file)
   
@@ -141,7 +144,7 @@ def mel_spec(wav_file, target) -> None:
     for bbox in bboxes:
         (ax1,ay1,aw1,ah1) = transform_axes(bbox, parameters)
         ax.add_patch(Rectangle((ax1, ay1), aw1, ah1,
-                        edgecolor = 'red',
+                        edgecolor = edge_color,
                         fill=False,
                         lw=1))
 
@@ -229,28 +232,21 @@ def transform_axes(bbox, parameters):
     fmax = parameters["fmax"]
     ph = parameters["ph"]
 
-    x1 = bbox[0]
-    y1 = bbox[1]
-    w1 = bbox[2]
-    h1 = bbox[3]
+    x = bbox[0]
+    y = bbox[1]
+    w = bbox[2]
+    h = bbox[3]
 
-    ax1 = x1/xfac
-    ay1 = y1+h1 #<--- because of inverted scale we have to add h1 to get starting y1
-    ay1 = (ph-ay1)*yfac
+    y = (y+h)
+    y = 320-y
+    yfac = 1.5625 # <-- this should be in parameters
+    y = y*yfac
+    h = h*yfac
 
-    if ay1 <=0:
-        if fmin > 0:
-            ay1 = ay1+fmin
-        else:
-            ay1 = fmin
-    ay1 = ay1
-    aw1 = w1/xfac
-    ah1 = zfac*h1
+    x = x/xfac
+    w = w/xfac
     
-    logging.debug('parameters are: %0.2f, %0.2f, %d, %d', xfac, yfac, ph, fmin)
-    logging.debug("bbox is: %d,%d,%d,%d", x1,y1,w1,h1)
-    logging.debug("transformed: %0.4f,%0.4f,%0.4f,%0.4f",ax1, ay1, aw1, ah1)
-    return(ax1, ay1, aw1, ah1)
+    return(x, y, w, h)
 
 
 def combine_wav(target) -> None:
@@ -349,7 +345,7 @@ def get_melspec_file_names(png_dir) -> list:
             for png_file in files:
                 # Non-annotated PNG files only
                 if 'sox_mel' in png_file:
-                    file_name = "%s%s" % (root, png_file)
+                    file_name = "%s/%s" % (root, png_file)
                     png_files.append(file_name)
     png_files = natsorted(png_files)
     return png_files
@@ -599,6 +595,7 @@ def gen_cons(png_file):
     config = get_config()
     edges_min = config['targets'][target]['taxa'][taxa]['con_edges_min']
     edges_max = config['targets'][target]['taxa'][taxa]['con_edges_max']
+    
 
     logging.debug('gen_cons(%s)' % png_file)
 
