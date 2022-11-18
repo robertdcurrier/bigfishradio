@@ -195,15 +195,10 @@ def get_transform_parameters(config, target):
     ph = config['targets'][target]['frame_y']
     rt = config['targets'][target]['recording_seconds']
     xfac = pw/rt 
-    yfac = ph/spec_fmax # <---- 0 top 320 bottom
-    zfac = spec_fmax/ph # <---- 0 bottom 320 top
+    yfac = spec_fmax/ph 
     parameters = { 
-                    "fmin" : spec_fmin,
-                    "fmax" : spec_fmax,
-                    "ph" : ph,
                     "xfac" : xfac,
-                    "yfac" : yfac,
-                    "zfac" : zfac
+                    "yfac" : yfac
                 }
 
     return parameters
@@ -214,25 +209,20 @@ def transform_axes(bbox, parameters):
     Name:       transform_axes
     Author:     robertdcurrier@gmail.com
     Created:    2022-11-11
-    Modified:   2022-11-15
+    Modified:   2022-11-18
     Notes:      Maps x pixels to x seconds and y pixels to y freq 
     Okay, this will make your brain bleed. On the raw mel png we have an x axis of 
     0 to 640 pixels. This has to be mapped to 0 to recording_time seconds for the annotated
     file.  The mel y axis is 0 to 320 pixels, with 0 at the TOP. This has to be mapped
     to fmin to fmax hz, with 0 at the BOTTOM.  We pre-calculate the scaling factors with
-    xfac = pixels_wide (640) / recording_time in seconds. Y is MUCH more complicated. First, 
-    we add returned bbox height to bbox y1, as we are INVERTED, giving us ay1. 
-    This is the starting y point. We then subtract ay1 from pixels_high (320) and multiply
-    by yfac. This gives us the bottom end of the y range in hz. We finally use zfac to do
-    the inverse to get height in hz by multiplying h1 by zfac. If ay1 is < 0 which can happen
-    when we set fmin to a value > 0, we add ay1 to fmin, otherwise ay1 is set to fmin. 
+    xfac = pixels_wide (640) / recording_time in seconds. Y is MUCH more complicated, as the
+    Y axis from the image is increasing downwards, while the Y axis on the annotated image is
+    increasing upwards. So the STARTING point of the bbox is really the sum of Y1+H, so we transform
+    it to the BOTTOM value for the annoted image Y1. We then multiply by YFAC both y and h. These
+    are now the proper values.
     """
     xfac = parameters["xfac"]
     yfac = parameters["yfac"]
-    zfac = parameters["zfac"]
-    fmin = parameters["fmin"]
-    fmax = parameters["fmax"]
-    ph = parameters["ph"]
 
     x = bbox[0]
     y = bbox[1]
