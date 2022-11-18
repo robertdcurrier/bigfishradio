@@ -13,10 +13,11 @@ source. Right now we call ffmpeg from the shell.
 """
 import logging
 import time
+import sys
 import multiprocessing as mp
 # Utility imports
 from bfr_utils_BETA import (mel_spec, get_config, clean_tmp_files, get_cli_args,
-get_wav_file_names, do_singles)
+get_wav_file_names, do_singles, create_report_db)
 
 
 def bfr() -> None:
@@ -29,18 +30,24 @@ def bfr() -> None:
     config = get_config()
     args = get_cli_args()
     target = args['target']
-    # TO DO: Need to error check valid target name here
-    wav_dir = config['targets'][target]["wav_dir"]
+    try:
+        wav_dir = config['targets'][target]["wav_dir"]
+    except KeyError:
+        logging.warning('Invalid target %s', target)
+        sys.exit()    
+    # set up logging
+    create_report_db(target)
+
     wav_files = []
     wav_files = get_wav_file_names(wav_dir)
     num_files = len(wav_files)
-
+    # Use Multiprocessing to expedite across all cores
     pool = mp.Pool()
     pool.map(do_singles, wav_files)
     # For testing
     #for file in wav_files:
-    #    do_singles(file)
-    #    sys.exit()
+    #    log_entry = do_singles(file)
+    #    detections.append(log_entry)
     return num_files
 
 

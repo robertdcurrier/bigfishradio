@@ -14,6 +14,7 @@ import librosa
 import json
 import argparse
 import itertools
+import sqlite3
 import numpy as np
 import cv2 as cv2
 import sox as sox
@@ -24,7 +25,7 @@ from PIL import Image
 from natsort import natsorted
 from pydub import AudioSegment
 from scipy.signal import butter, filtfilt
-
+detections = []
 
 def get_cli_args():
     """What it say.
@@ -173,6 +174,7 @@ def mel_spec(wav_file, target) -> None:
     cv2.imwrite(annotated_out, image)
     logging.debug("mel_spec(): Closing fig")
     plt.close()
+    return(len(bboxes))
 
 
 def get_transform_parameters(config, target):
@@ -503,7 +505,6 @@ def seek_biologics_png(png_file):
     rect_color = eval('%s' % config['targets'][target]['taxa'][taxa]["rect_color"])
    
     line_thick = config['targets'][target]['taxa'][taxa]["line_thick"]
-    y1_max = config['targets'][target]['taxa'][taxa]["y1_max"]
     for bbox in bboxes:
         x1 = bbox[0]
         y1 = bbox[1]
@@ -511,9 +512,7 @@ def seek_biologics_png(png_file):
         height = bbox[3]
         x2 = x1+width
         y2 = y1+height
-    
-        if y1 > y1_max:
-            cv2.rectangle(img,(x1,y1),(x2,y2), (rect_color), line_thick)    
+        cv2.rectangle(img,(x1,y1),(x2,y2), (rect_color), line_thick)    
     (root, fname) = os.path.split(png_file)
     no_ext = os.path.splitext(fname)[0]
     cons_f = "%s/%s_CONS.png" % (debug_dir, no_ext)
@@ -655,13 +654,52 @@ def do_singles(file) -> None:
     Notes:      This replaces the for file in loop we used previously
     """
     args = get_cli_args()
+    config = get_config()
+    base = os.path.basename(file)
+    no_ext = os.path.splitext(base)[0]
     # Single files
     target = args['target']
     logging.debug('do_singles(): processing file %s', file)
+
     boost_file = boost_audio(file, target)
     sox_file = soxfilter(boost_file, target)
     # need to run spec on SOX file, not just BOOST file yo!
-    mel_spec(sox_file, target)
+    detections = mel_spec(sox_file, target)
+    logging.debug('%s had %d detections', file, detections)
+    create_log_file(target,no_ext,detections)
     header_footer(sox_file, target)
     ffmpeg_it(sox_file, target)
     logging.debug('bfr(): Finished single file processing %s', file)
+
+
+def create_log_file(target,file,detections):
+    """
+    """
+    config = get_config()
+    reports_dir = config['targets'][target]['reports_dir']
+    data_root = config['targets'][target]['data_root']
+    report_file = "%s/%s.log" % (reports_dir,file)
+    logging.info('create_log_file(%s)', report_file)
+
+
+def create_report_db(target):
+    """
+    Created:    2022-11-18
+    Author:     robertdcurrier@gmail.com
+    Modified:   2022-11-18
+    Notes:      Creates a sqlite3 db to use for report logging
+    """
+    config = get_config()
+    reports_dir = config['targets'][target]['reports_dir']
+    data_root = config['targets'][target]['data_root']
+    reports_file = '%s/%s.db' % (reports_dir, target)
+    logging.info('create_report_db(%s)',reports_file)
+  
+    con = sqlite3.connect(reports_file)
+    cur = con.cursor()
+    command = "create table '%s'(filename,detections)" % data_root
+    try:
+        cur.execute(command)
+    except sqlite3.Error as e:
+        logging.warning('create_report_db(%s): %s', target, e)
+    cur.close()
