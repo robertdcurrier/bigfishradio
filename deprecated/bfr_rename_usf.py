@@ -7,7 +7,7 @@ import shutil
 
 file_count = 0
 
-target_dir = '/data/bigfishradio/raw/projects/USF_Right_Whales'
+target_dir = '/data/bigfishradio/pi/locascio/projects/Rileys_Hump_2010/raw/wav'
 for folderName, subfolders, filenames in os.walk(target_dir):
     print('The current folder is ' + folderName)
 
@@ -18,7 +18,7 @@ for filename in sorted(filenames):
     fixed = base.replace('.', '_')
     fixed = fixed.replace(' ', '_')
     fixed = fixed.replace('__','_')
-    final = '/data/bigfishradio/raw/projects/USF_Right_Whales/%s.wav' % fixed
+    final = '/data/bigfishradio/pi/locascio/projects/Rileys_Hump_2010/raw/wav/%s.wav' % fixed
     shutil.move(folderName +'/'+ filename, final)
     print('Converted %s to %s' % (filename, final))
     file_count += 1

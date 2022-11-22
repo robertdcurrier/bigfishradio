@@ -139,7 +139,9 @@ def mel_spec(wav_file, target) -> None:
             hop_length=hop_length, x_axis='time',y_axis='mel',
             fmax=spec_fmax, fmin=spec_fmin, cmap=cmap)
 
-    
+    """
+    NOTE: Turned off BBOXES for now...
+
     bboxes = seek_biologics_png(raw_mel)
     parameters = get_transform_parameters(config, target) 
     for bbox in bboxes:
@@ -148,7 +150,7 @@ def mel_spec(wav_file, target) -> None:
                         edgecolor = edge_color,
                         fill=False,
                         lw=1))
-
+    """
     fig.colorbar(img, ax=ax, format="%+2.f dB")
     fig.gca().set_ylabel("Hz", fontsize=8)
     fig.gca().set_xlabel("Seconds", fontsize=8)
@@ -174,7 +176,7 @@ def mel_spec(wav_file, target) -> None:
     cv2.imwrite(annotated_out, image)
     logging.debug("mel_spec(): Closing fig")
     plt.close()
-    return(len(bboxes))
+    #return(len(bboxes))
 
 
 def get_transform_parameters(config, target):
@@ -582,8 +584,10 @@ def gen_cons(png_file):
     taxa = "beta"
 
     config = get_config()
+    debug_dir = config['targets'][target]['debug_dir']
     edges_min = config['targets'][target]['taxa'][taxa]['con_edges_min']
     edges_max = config['targets'][target]['taxa'][taxa]['con_edges_max']
+    no_ext = os.path.splitext(png_file)[0]
     
 
     logging.debug('gen_cons(%s)' % png_file)
@@ -592,10 +596,16 @@ def gen_cons(png_file):
     gray  = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (3,3), cv2.BORDER_WRAP)
     edges = cv2.Canny(blurred, edges_min, edges_max)
+    raw_contours, _ = (cv2.findContours(edges, cv2.RETR_TREE,
+                                        cv2.CHAIN_APPROX_NONE))
     contours, _ = (cv2.findContours(edges, cv2.RETR_TREE,
-                            cv2.CHAIN_APPROX_NONE))
+                                    cv2.CHAIN_APPROX_NONE))
+    cimg = cv2.drawContours(blurred, raw_contours, -1, (255,255,255), 2)
     (root, fname) = os.path.split(png_file)
     no_ext = os.path.splitext(fname)[0]
+    raw_f = "%s/%s_RAW_CONS.png" % (debug_dir, no_ext)
+    cv2.imwrite(raw_f, cimg)
+    
     return contours
 
 
