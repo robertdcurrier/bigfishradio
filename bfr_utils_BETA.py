@@ -139,8 +139,6 @@ def mel_spec(wav_file, target) -> None:
             hop_length=hop_length, x_axis='time',y_axis='mel',
             fmax=spec_fmax, fmin=spec_fmin, cmap=cmap)
 
-    """
-    NOTE: Turned off BBOXES for now...
 
     bboxes = seek_biologics_png(raw_mel)
     parameters = get_transform_parameters(config, target) 
@@ -150,7 +148,7 @@ def mel_spec(wav_file, target) -> None:
                         edgecolor = edge_color,
                         fill=False,
                         lw=1))
-    """
+
     fig.colorbar(img, ax=ax, format="%+2.f dB")
     fig.gca().set_ylabel("Hz", fontsize=8)
     fig.gca().set_xlabel("Seconds", fontsize=8)
@@ -626,8 +624,13 @@ def gen_bboxes(cons):
     ncons = len(cons)
     logging.debug('gen_bboxes(): %d circ_cons' % ncons)
 
-    min_roi_area = config['targets'][target]['taxa'][taxa]['min_roi']
-    max_roi_area = config['targets'][target]['taxa'][taxa]['max_roi']
+    min_roi_area = config['targets'][target]['taxa'][taxa]['min_roi_area']
+    max_roi_area = config['targets'][target]['taxa'][taxa]['max_roi_area']
+    min_roi_w = config['targets'][target]['taxa'][taxa]['min_roi_w']
+    max_roi_w = config['targets'][target]['taxa'][taxa]['max_roi_w']
+    min_roi_h = config['targets'][target]['taxa'][taxa]['min_roi_h']
+    max_roi_h = config['targets'][target]['taxa'][taxa]['max_roi_h']
+    
     for con in cons:
         rect = cv2.boundingRect(con)
         x1 = rect[0]
@@ -636,11 +639,12 @@ def gen_bboxes(cons):
         height = rect[3]
         x2 = x1+width
         y2 = y1+height
-        
         area = width*height
-        logging.debug('gen_bboxes() Area: %d', area)
-        if area > min_roi_area and area < max_roi_area:
-            bboxes.append([x1,y1,width,height])
+        
+        logging.debug('gen_bboxes() Width: %d Height: %d', width, height)
+        if width > min_roi_w and width < max_roi_w:
+            if height > min_roi_h and height < max_roi_h:
+                bboxes.append([x1,y1,width,height])
     bboxes = list(bboxes for bboxes,_ in itertools.groupby(bboxes))
     logging.debug('gen_bboxes(): Found %d ROIs' % (len(bboxes)))
     return (bboxes)
