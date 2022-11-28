@@ -209,7 +209,7 @@ def transform_axes(bbox, parameters):
     Name:       transform_axes
     Author:     robertdcurrier@gmail.com
     Created:    2022-11-11
-    Modified:   2022-11-18
+    Modified:   2022-11-28
     Notes:      Maps x pixels to x seconds and y pixels to y freq 
     Okay, this will make your brain bleed. On the raw mel png we have an x axis of 
     0 to 640 pixels. This has to be mapped to 0 to recording_time seconds for the annotated
@@ -231,7 +231,6 @@ def transform_axes(bbox, parameters):
 
     y = (y+h)
     y = 320-y
-    yfac = 1.5625 # <-- this should be in parameters
     y = y*yfac
     h = h*yfac
 
