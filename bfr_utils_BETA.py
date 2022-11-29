@@ -139,7 +139,7 @@ def mel_spec(wav_file, target) -> None:
             hop_length=hop_length, x_axis='time',y_axis='mel',
             fmax=spec_fmax, fmin=spec_fmin, cmap=cmap)
 
-
+    """ No BBOXES WHILE TESTING CLIPS
     bboxes = seek_biologics_png(raw_mel)
     parameters = get_transform_parameters(config, target) 
     for bbox in bboxes:
@@ -148,7 +148,7 @@ def mel_spec(wav_file, target) -> None:
                         edgecolor = edge_color,
                         fill=False,
                         lw=1))
-
+    """
     fig.colorbar(img, ax=ax, format="%+2.f dB")
     fig.gca().set_ylabel("Hz", fontsize=8)
     fig.gca().set_xlabel("Seconds", fontsize=8)

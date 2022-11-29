@@ -8,3 +8,9 @@ services:
       - ~/src/apps/bigfishradio:/bigfishradio
       - /data/bigfishradio:/data/bigfishradio
     working_dir: /bigfishradio
+
+  mongo:
+    image: mongo:4.2.21
+    container_name: mongo
+    volumes:
+    - /data/foo:/data/db
