@@ -17,7 +17,7 @@ import sys
 import multiprocessing as mp
 # Utility imports
 from bfr_utils_BETA import (mel_spec, get_config, clean_tmp_files, get_cli_args,
-get_wav_file_names, do_singles, create_report_db)
+get_wav_file_names, do_singles)
 
 
 def bfr() -> None:
@@ -35,8 +35,6 @@ def bfr() -> None:
     except KeyError:
         logging.warning('Invalid target %s', target)
         sys.exit()    
-    # set up logging
-    create_report_db(target)
 
     wav_files = []
     wav_files = get_wav_file_names(wav_dir)
@@ -44,10 +42,6 @@ def bfr() -> None:
     # Use Multiprocessing to expedite across all cores
     pool = mp.Pool()
     pool.map(do_singles, wav_files)
-    # For testing
-    #for file in wav_files:
-    #    log_entry = do_singles(file)
-    #    detections.append(log_entry)
     return num_files
 
 

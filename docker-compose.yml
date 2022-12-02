@@ -13,4 +13,4 @@ services:
     image: mongo:4.2.21
     container_name: mongo
     volumes:
-    - /data/foo:/data/db
+    - /data/db:/data/db

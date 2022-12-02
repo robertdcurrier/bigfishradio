@@ -10,11 +10,13 @@ import logging
 import os
 import sys
 import time
-import librosa
+import datetime
 import json
 import argparse
 import itertools
-import sqlite3
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+import librosa
 import numpy as np
 import cv2 as cv2
 import sox as sox
@@ -25,6 +27,8 @@ from PIL import Image
 from natsort import natsorted
 from pydub import AudioSegment
 from scipy.signal import butter, filtfilt
+# local imports
+from bfr_mongo import connect_mongo, insert_record, build_raw_doc
 detections = []
 
 def get_cli_args():
@@ -98,7 +102,7 @@ def mel_spec(wav_file, target) -> None:
     base = os.path.basename(wav_file)
     no_ext = os.path.splitext(base)[0]
     tmp_mel = "%s/%s_mel.png" % (tmp_dir, no_ext)
-    # Save in procoessed for AI
+    # Save in processed for AI
     raw_mel = "%s/%s_mel.png" % (processed_dir, no_ext)
 
     logging.info("mel_spec(): Generating mel spec for %s", wav_file)
@@ -139,7 +143,7 @@ def mel_spec(wav_file, target) -> None:
             hop_length=hop_length, x_axis='time',y_axis='mel',
             fmax=spec_fmax, fmin=spec_fmin, cmap=cmap)
 
-    """ No BBOXES WHILE TESTING CLIPS
+    """ No BBOXES WHILE TESTING CLIPS """
     bboxes = seek_biologics_png(raw_mel)
     parameters = get_transform_parameters(config, target) 
     for bbox in bboxes:
@@ -148,7 +152,7 @@ def mel_spec(wav_file, target) -> None:
                         edgecolor = edge_color,
                         fill=False,
                         lw=1))
-    """
+    
     fig.colorbar(img, ax=ax, format="%+2.f dB")
     fig.gca().set_ylabel("Hz", fontsize=8)
     fig.gca().set_xlabel("Seconds", fontsize=8)
@@ -174,7 +178,7 @@ def mel_spec(wav_file, target) -> None:
     cv2.imwrite(annotated_out, image)
     logging.debug("mel_spec(): Closing fig")
     plt.close()
-    #return(len(bboxes))
+    return(len(bboxes))
 
 
 def get_transform_parameters(config, target):
@@ -667,42 +671,23 @@ def do_singles(file) -> None:
     boost_file = boost_audio(file, target)
     sox_file = soxfilter(boost_file, target)
     # need to run spec on SOX file, not just BOOST file yo!
-    detections = mel_spec(sox_file, target)
-    logging.debug('%s had %d detections', file, detections)
-    create_log_file(target,no_ext,detections)
+    roi = mel_spec(sox_file, target)
+    # Turn file name into proper date-time format
+    basename = os.path.basename(file)
+    no_ext = os.path.splitext(basename)[0]
+    format = "%Y%m%dT%H%M%S"
+    tstamp = datetime.datetime.strptime(no_ext, format)
+    dts = tstamp.strftime('%Y-%m-%d %H:%M:%S')
+    pi = config['targets'][target]['pi']
+    project = config['targets'][target]['project']
+    roi_doc = ('{"pi":"%s","project":"%s","file":"%s","roi":%d,"timestamp":"%s"}' %
+              (pi, project, file, roi, dts))
+    roi_json = json.loads(roi_doc)
+    insert_record("roi_detections", roi_json)
+    raw_doc = build_raw_doc(config, args, file)
+    insert_record("raw_files", raw_doc)
+
     header_footer(sox_file, target)
     ffmpeg_it(sox_file, target)
     logging.debug('bfr(): Finished single file processing %s', file)
 
-
-def create_log_file(target,file,detections):
-    """
-    """
-    config = get_config()
-    reports_dir = config['targets'][target]['reports_dir']
-    data_root = config['targets'][target]['data_root']
-    report_file = "%s/%s.log" % (reports_dir,file)
-    logging.info('create_log_file(%s)', report_file)
-
-
-def create_report_db(target):
-    """
-    Created:    2022-11-18
-    Author:     robertdcurrier@gmail.com
-    Modified:   2022-11-18
-    Notes:      Creates a sqlite3 db to use for report logging
-    """
-    config = get_config()
-    reports_dir = config['targets'][target]['reports_dir']
-    data_root = config['targets'][target]['data_root']
-    reports_file = '%s/%s.db' % (reports_dir, target)
-    logging.info('create_report_db(%s)',reports_file)
-  
-    con = sqlite3.connect(reports_file)
-    cur = con.cursor()
-    command = "create table '%s'(filename,detections)" % data_root
-    try:
-        cur.execute(command)
-    except sqlite3.Error as e:
-        logging.warning('create_report_db(%s): %s', target, e)
-    cur.close()
